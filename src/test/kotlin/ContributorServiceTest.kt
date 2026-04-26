@@ -26,6 +26,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 private const val COORDINATE = "PRE-C-719330309-0-0-ZB937"
+// The version that produced the checked-in sample.json. Used only for
+// the round-trip parity check in this test; production reads the live
+// version from WorldgenRuntime.version.
+private const val SAMPLE_GAME_VERSION: Int = 720697
 
 private val rawJson = ContributorServiceTest::class.java.getResourceAsStream("sample.json")!!
     .readAllBytes()
@@ -112,6 +116,7 @@ class ContributorServiceTest {
         nextCoordinate = { COORDINATE },
         worldgen = { rawJson.trimEnd() },
         uploader = uploader,
+        gameVersion = SAMPLE_GAME_VERSION,
         // Tight throttle params keep tests fast — semantics still match production.
         initialDelayMs = 1,
         delayStepMs = 1,
@@ -135,7 +140,7 @@ class ContributorServiceTest {
         // Sanity: the sample produces a parseable Cluster with the right coord.
         val cluster = WorldgenMapDataConverter.convert(
             mapData = WorldgenMapData.fromJson(rawJson.trimEnd()),
-            gameVersion = WORLDGEN_GAME_VERSION,
+            gameVersion = SAMPLE_GAME_VERSION,
         )
         check(cluster.coordinate == COORDINATE) { "sample coord mismatch: ${cluster.coordinate}" }
         check(cluster.cluster == ClusterType.DLC_RELICA_MINOR) { "unexpected cluster type ${cluster.cluster}" }

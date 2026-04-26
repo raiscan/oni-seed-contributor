@@ -33,12 +33,3 @@ object RandomCoordinate {
         return "${type.prefix}-$seed-0-0-0"
     }
 }
-
-/**
- * The game version stamped onto every uploaded cluster. Must match the
- * WASM bundle currently shipped in `src/main/resources/worldgen/`. The
- * backend's `findCurrentGameVersion()` is the source of truth — bump
- * this in lockstep when the npm package
- * (`@tigin-backwards/oxygen-not-included-worldgen`) version changes.
- */
-const val WORLDGEN_GAME_VERSION: Int = 720697

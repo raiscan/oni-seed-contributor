@@ -15,28 +15,37 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Mirrors AppStorage.getInstallationId() in oni-seed-browser: a single
- * UUID per installation, persisted across restarts. The Dockerfile
- * declares /data as a VOLUME so the operator's bind-mount or named
- * volume keeps the same ID even if the container is recreated.
+ * Resolves the installation ID for this run.
  *
- * If the file is missing, mint a fresh UUID and write it; otherwise
- * load the existing one. Whitespace tolerated for hand-edited values.
+ * - If `INSTALLATION_ID` is set to a valid UUID, that value is used —
+ *   so an operator who wants the backend to see the same installation
+ *   across container restarts can pin one explicitly.
+ * - Otherwise a fresh UUID is generated for this process. The container
+ *   doesn't need a mounted volume for this to work; the backend
+ *   dedupes uploads by Steam ID + coordinate, so a per-restart
+ *   installation ID is just a different signal in the analytics, not
+ *   a correctness issue.
  */
 object InstallationId {
-    fun loadOrCreate(path: Path): String {
-        if (Files.exists(path)) {
-            val existing = Files.readString(path).trim()
-            if (existing.isNotEmpty()) return existing
+    fun resolve(envValue: String?): String {
+        val trimmed = envValue?.trim().orEmpty()
+        if (trimmed.isNotEmpty()) {
+            try {
+                UUID.fromString(trimmed)
+            } catch (_: IllegalArgumentException) {
+                error("INSTALLATION_ID is set but not a valid UUID: '$envValue'")
+            }
+            println("[INIT] Using installationId from INSTALLATION_ID env var")
+            return trimmed
         }
-        Files.createDirectories(path.parent ?: Path.of("."))
         val fresh = UUID.randomUUID().toString()
-        Files.writeString(path, fresh)
+        println(
+            "[INIT] Generated installationId $fresh for this run " +
+                "(set INSTALLATION_ID env var to make it stable across restarts)"
+        )
         return fresh
     }
 }

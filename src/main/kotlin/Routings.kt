@@ -33,6 +33,7 @@ import io.ktor.server.routing.routing
 fun Application.configureRouting(
     service: ContributorService,
     controlApiKey: String?,
+    gameVersion: Int,
 ) {
 
     println("[INIT] Starting Server at version $VERSION")
@@ -65,7 +66,7 @@ fun Application.configureRouting(
 
             val cluster = WorldgenMapDataConverter.convert(
                 mapData = mapData,
-                gameVersion = WORLDGEN_GAME_VERSION
+                gameVersion = gameVersion
             )
 
             call.respond(cluster)

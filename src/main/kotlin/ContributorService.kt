@@ -46,7 +46,7 @@ class ContributorService(
     private val nextCoordinate: () -> String = RandomCoordinate::next,
     private val worldgen: suspend (String) -> String,
     private val uploader: suspend (Cluster) -> UploadResult,
-    private val gameVersion: Int = WORLDGEN_GAME_VERSION,
+    private val gameVersion: Int,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     /* Throttling parameters — defaults mirror oni-seed-browser's MapGenerationView. */
     private val initialDelayMs: Int = DEFAULT_DELAY_MS,

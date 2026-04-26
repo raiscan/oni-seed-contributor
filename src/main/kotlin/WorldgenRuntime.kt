@@ -38,6 +38,22 @@ object WorldgenRuntime : AutoCloseable {
 
     private val nodeRuntime: NodeRuntime = V8Host.getNodeInstance().createV8Runtime()
     private val generateFn: V8ValueFunction
+
+    /**
+     * The full version string reported by the WASM, e.g.
+     * `"720697+0.1.0"` — `<ONI_BUILD>+<PACKAGE_VERSION>`. Logged at
+     * init for diagnostics.
+     */
+    val versionString: String
+
+    /**
+     * The integer game build (the prefix of [versionString]) stamped
+     * onto every uploaded cluster. Reading this lazily from the WASM
+     * keeps the contributor in lockstep with whatever bundle ships,
+     * with no Kotlin-side constant to bump.
+     */
+    val version: Int
+
     private val mutex = Mutex()
 
     init {
@@ -117,6 +133,16 @@ object WorldgenRuntime : AutoCloseable {
                         "WASM init likely failed silently. Check the WASM " +
                         "bundle and module resolver."
                 )
+
+            // 6. Resolve `worldgen.version()` once. The WASM returns a
+            //    "<build>+<package>" string (e.g. "720697+0.1.0"); the
+            //    upload payload needs just the integer build.
+            versionString = nodeRuntime.globalObject.get<V8ValueFunction>("__version").use { fn ->
+                fn.callString(null)
+            }
+            version = versionString.substringBefore('+').toIntOrNull()
+                ?: error("Unexpected WASM version format: '$versionString' (expected '<build>+<package>')")
+            println("[INIT] WASM worldgen version: $versionString (game build $version)")
 
         } catch (t: Throwable) {
             // Constructor failed — release native resources before
@@ -207,6 +233,10 @@ try {
     console.error('[BOOTSTRAP] WASM init failed:', e);
     throw e;
 }
+
+globalThis.__version = function () {
+    return worldgen.version();
+};
 
 globalThis.__generate = function (coord) {
     const r = worldgen.generate(coord);

@@ -17,7 +17,6 @@
  */
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import java.nio.file.Path
 
 fun main() {
 
@@ -29,10 +28,7 @@ fun main() {
     val mniApiKey = System.getenv("MNI_API_KEY_BROWSER")
         ?: error("Missing MNI_API_KEY_BROWSER environment variable (baked into the official image)")
 
-    val installationIdPath = Path.of(
-        System.getenv("INSTALLATION_ID_PATH") ?: "/data/installation_id"
-    )
-    val installationId = InstallationId.loadOrCreate(installationIdPath)
+    val installationId = InstallationId.resolve(System.getenv("INSTALLATION_ID"))
 
     val controlApiKey: String? = System.getenv("CONTROL_API_KEY")?.takeIf { it.isNotBlank() }
     val autoStart: Boolean = System.getenv("AUTO_START")?.lowercase() != "false"
@@ -44,9 +40,16 @@ fun main() {
         mniApiKey = mniApiKey,
     )
 
+    // Touching `WorldgenRuntime.version` triggers the (~1-3s) V8/WASM
+    // bootstrap and surfaces any startup failure here rather than on
+    // the first /generate call. Cache the result so we pass the same
+    // value to both the loop and the debug route.
+    val gameVersion = WorldgenRuntime.version
+
     val service = ContributorService(
         worldgen = WorldgenRuntime::generate,
         uploader = backendClient::upload,
+        gameVersion = gameVersion,
     )
 
     Runtime.getRuntime().addShutdownHook(
@@ -70,5 +73,5 @@ fun main() {
         factory = Netty,
         port = port,
         host = "0.0.0.0",
-    ) { configureRouting(service, controlApiKey) }.start(wait = true)
+    ) { configureRouting(service, controlApiKey, gameVersion) }.start(wait = true)
 }

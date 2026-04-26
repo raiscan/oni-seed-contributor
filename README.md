@@ -19,13 +19,13 @@ contribute view open in a desktop tab.
 ```bash
 docker run --rm -p 8080:8080 \
   -e STEAM_AUTH_TOKEN=eyJ... \
-  -v oni-contributor-data:/data \
   ghcr.io/stefanoltmann/oni-seed-contributor:latest
 ```
 
-The container auto-starts the contributor loop at boot. Mount a
-persistent volume at `/data` so the per-installation UUID is the same
-across restarts (matches the browser's `installationId` semantics).
+The container auto-starts the contributor loop at boot. No volume
+mount required — a fresh installation UUID is generated per process
+(set `INSTALLATION_ID` to a UUID if you want it stable across restarts;
+the backend dedupes by Steam ID + coordinate either way).
 
 The official image bakes `MNI_API_KEY_BROWSER` in at build time. If you
 build your own image and don't bake it in, pass it explicitly via
@@ -59,7 +59,6 @@ Requirements: a JDK supported by foojay (Gradle auto-downloads JDK 25 on first b
 ```bash
 export STEAM_AUTH_TOKEN=eyJ...
 export MNI_API_KEY_BROWSER=...
-export INSTALLATION_ID_PATH=/tmp/oni-contributor-installation-id
 export AUTO_START=false
 ./gradlew run                                  # boots on :8080
 curl http://localhost:8080/generate/LUSH-A-867734350-0-0-0
@@ -89,7 +88,7 @@ unset (the default) and `401 Unauthorized` on header mismatch.
 | `STEAM_AUTH_TOKEN` | *(required)* | The MNI/Steam JWT — copy it from the oni-seed-browser frontend's auth flow. Service refuses to start if the token is missing, malformed, missing the `sub`/`steamId` claim, or already past `exp`. |
 | `MNI_API_KEY_BROWSER` | *(required)* | Backend API key. Baked into the official Docker image; pass via `-e` if you build your own. |
 | `SERVER_URL` | `https://mni.stefan-oltmann.de` | Backend root; appends `/upload`. Override only if you're running your own backend. |
-| `INSTALLATION_ID_PATH` | `/data/installation_id` | Where the per-install UUID is read/written. Mount a volume covering this path to persist across restarts. |
+| `INSTALLATION_ID` | *(auto)* | A UUID. If unset, one is generated per process — fine in most cases since the backend dedupes by Steam ID + coordinate. Set explicitly if you want a stable ID across container restarts. |
 | `AUTO_START` | `true` | Set to `false` to keep the loop idle at boot — start it later via `GET /start`. |
 | `CONTROL_API_KEY` | *(unset)* | When set, `/start` and `/stop` require `API_KEY: <this>` header. When unset, both endpoints return 403. |
 | `WORLDGEN_PORT` | `8080` | HTTP listen port. |
@@ -125,7 +124,7 @@ WorldgenRuntime.kt          V8/Node + WASM lifecycle, mutex, JS strip
 BackendClient.kt            ktor-client wrapper around POST /upload
 SteamAuthToken.kt           JWT parsing + minimal validation
 InstallationId.kt           load-or-create the persistent per-install UUID
-RandomCoordinate.kt         generateRandomCoordinate() port + WORLDGEN_GAME_VERSION
+RandomCoordinate.kt         generateRandomCoordinate() port
 WorldgenModels.kt           vendored from oni-seed-browser frontend
 WorldgenMapDataConverter.kt vendored from oni-seed-browser frontend
 UploadClusterConverter.kt   vendored from oni-seed-browser frontend
